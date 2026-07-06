@@ -83,16 +83,37 @@ export default function App() {
   const [recordToDelete, setRecordToDelete] = useState<HealthRecord | null>(null);
   const [isDeleting, setIsDeleting] = useState<boolean>(false);
 
-  // Fetch all health records from our backend
+  // Fetch all health records from our backend or localStorage fallback
   const fetchRecords = async () => {
+    const isGitHubPages = window.location.hostname.endsWith("github.io");
+    if (isGitHubPages) {
+      try {
+        const localData = localStorage.getItem("chemo_tracker_records");
+        setRecords(localData ? JSON.parse(localData) : []);
+      } catch (err) {
+        console.error("Error loading from localStorage:", err);
+        setRecords([]);
+      }
+      return;
+    }
+
     try {
       const res = await fetch("/api/records");
       if (res.ok) {
-        const data = await res.json();
-        setRecords(data);
+        const contentType = res.headers.get("content-type");
+        if (contentType && contentType.includes("application/json")) {
+          const data = await res.json();
+          setRecords(data);
+          return;
+        }
       }
+      // If we got non-JSON or other error, try localStorage fallback
+      const localData = localStorage.getItem("chemo_tracker_records");
+      setRecords(localData ? JSON.parse(localData) : []);
     } catch (e) {
-      console.error("Error fetching records:", e);
+      console.error("Error fetching records, falling back to local:", e);
+      const localData = localStorage.getItem("chemo_tracker_records");
+      setRecords(localData ? JSON.parse(localData) : []);
     }
   };
 
@@ -204,6 +225,43 @@ export default function App() {
       comment: comment || "Без коментаря"
     };
 
+    const isGitHubPages = window.location.hostname.endsWith("github.io");
+
+    const saveRecordToLocalStorage = () => {
+      try {
+        const savedLocal = localStorage.getItem("chemo_tracker_records");
+        const currentRecords = savedLocal ? JSON.parse(savedLocal) : [];
+        const newSavedRecord = {
+          id: `local_${createdAtMs}`,
+          ...newRecord
+        } as HealthRecord;
+        const updatedRecords = [newSavedRecord, ...currentRecords];
+        localStorage.setItem("chemo_tracker_records", JSON.stringify(updatedRecords));
+      } catch (err) {
+        console.error("Error saving to localStorage:", err);
+      }
+    };
+
+    if (isGitHubPages) {
+      saveRecordToLocalStorage();
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
+
+      // Reset form inputs back to blank
+      setTemperature("");
+      setSaturation("");
+      setPulse("");
+      setPressureSys("");
+      setPressureDia("");
+      setSelectedComplaints([]);
+      setMedications("");
+      setComment("");
+
+      fetchRecords();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+
     try {
       const res = await fetch("/api/records", {
         method: "POST",
@@ -231,11 +289,41 @@ export default function App() {
         // Scroll page up smoothly
         window.scrollTo({ top: 0, behavior: "smooth" });
       } else {
-        alert("Помилка при збереженні запису.");
+        // Fallback to local storage
+        saveRecordToLocalStorage();
+        setSaveSuccess(true);
+        setTimeout(() => setSaveSuccess(false), 3000);
+
+        setTemperature("");
+        setSaturation("");
+        setPulse("");
+        setPressureSys("");
+        setPressureDia("");
+        setSelectedComplaints([]);
+        setMedications("");
+        setComment("");
+
+        fetchRecords();
+        window.scrollTo({ top: 0, behavior: "smooth" });
       }
     } catch (error) {
-      console.error("Save failed:", error);
-      alert("Не вдалося з'єднатися з сервером для збереження запису.");
+      console.error("Save failed, falling back to local:", error);
+      // Fallback to local storage
+      saveRecordToLocalStorage();
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
+
+      setTemperature("");
+      setSaturation("");
+      setPulse("");
+      setPressureSys("");
+      setPressureDia("");
+      setSelectedComplaints([]);
+      setMedications("");
+      setComment("");
+
+      fetchRecords();
+      window.scrollTo({ top: 0, behavior: "smooth" });
     }
   };
 
@@ -248,8 +336,34 @@ export default function App() {
   const handleConfirmDelete = async () => {
     if (!recordToDelete) return;
     setIsDeleting(true);
+
+    const isGitHubPages = window.location.hostname.endsWith("github.io");
+    const id = recordToDelete.id || recordToDelete.createdAtMs;
+
+    const deleteFromLocalStorage = () => {
+      try {
+        const savedLocal = localStorage.getItem("chemo_tracker_records");
+        if (savedLocal) {
+          const currentRecords = JSON.parse(savedLocal) as HealthRecord[];
+          const filtered = currentRecords.filter(
+            (r) => r.id !== id && r.createdAtMs !== recordToDelete.createdAtMs
+          );
+          localStorage.setItem("chemo_tracker_records", JSON.stringify(filtered));
+        }
+      } catch (err) {
+        console.error("Error deleting from localStorage:", err);
+      }
+    };
+
+    if (isGitHubPages || (typeof id === "string" && id.startsWith("local_"))) {
+      deleteFromLocalStorage();
+      setRecordToDelete(null);
+      setIsDeleting(false);
+      fetchRecords();
+      return;
+    }
+
     try {
-      const id = recordToDelete.id || recordToDelete.createdAtMs;
       const res = await fetch(`/api/records/${id}`, {
         method: "DELETE"
       });
@@ -257,11 +371,17 @@ export default function App() {
         setRecordToDelete(null);
         fetchRecords();
       } else {
-        alert("Помилка при видаленні запису з сервера.");
+        // Fallback local delete
+        deleteFromLocalStorage();
+        setRecordToDelete(null);
+        fetchRecords();
       }
     } catch (e) {
-      console.error("Delete failed:", e);
-      alert("Не вдалося видалити запис.");
+      console.error("Delete failed, falling back to local:", e);
+      // Fallback local delete
+      deleteFromLocalStorage();
+      setRecordToDelete(null);
+      fetchRecords();
     } finally {
       setIsDeleting(false);
     }
