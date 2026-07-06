@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Медицинский трекер после химиотерапии</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts (Inter) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen pb-12">
+
+  <!-- МАКЕТ СТРАНИЦЫ -->
+  <div class="max-w-md mx-auto px-4 pt-6">
+    <!-- Шапка -->
+    <header class="bg-gradient-to-r from-red-500 to-rose-600 rounded-3xl p-6 text-white shadow-xl mb-6 text-center">
+      <div class="inline-flex p-3 bg-white/20 rounded-2xl mb-3">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+        </svg>
+      </div>
+      <h1 class="text-2xl font-extrabold tracking-tight">Мой медицинский трекер</h1>
+      <p class="text-red-100 text-sm mt-1 font-medium">Простой дневник здоровья после химиотерапии</p>
+    </header>
+
+    <!-- Вкладки (Крупные для удобства нажатия) -->
+    <div class="grid grid-cols-2 gap-2 bg-white p-2 rounded-2xl shadow-sm mb-6">
+      <button id="tab-entry" onclick="switchTab('entry')" class="flex items-center justify-center gap-2 py-4 px-3 rounded-xl text-lg font-bold transition-all bg-red-500 text-white shadow-md">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        Ввод данных
+      </button>
+      <button id="tab-history" onclick="switchTab('history')" class="flex items-center justify-center gap-2 py-4 px-3 rounded-xl text-lg font-bold transition-all text-slate-500 hover:bg-slate-100">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        История
+      </button>
+    </div>
+
+    <!-- Режим локального демо-предупреждения -->
+    <div id="demo-banner" class="bg-amber-50 border-2 border-amber-200 text-amber-800 p-4 rounded-2xl mb-6 text-sm flex items-start gap-3">
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-amber-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+      <div>
+        <p class="font-bold">Локальный режим работы</p>
+        <p class="mt-0.5 text-xs">Данные сохраняются только в памяти этого браузера. Замените пустой <strong>firebaseConfig</strong> в коде этого файла своими ключами из консоли Firebase, чтобы видеть записи с любого устройства.</p>
+      </div>
+    </div>
+
+    <!-- УСПЕШНОЕ СОХРАНЕНИЕ -->
+    <div id="save-toast" class="hidden fixed top-6 left-4 right-4 z-50 bg-green-500 text-white py-4 px-6 rounded-2xl text-center font-bold text-lg shadow-xl flex items-center justify-center gap-2 animate-bounce">
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+      </svg>
+      Запись успешно сохранена!
+    </div>
+
+    <!-- ВКЛАДКА 1: ВВОД ДАННЫХ -->
+    <div id="view-entry">
+      <!-- Динамические Умные Предупреждения (Алерты) -->
+      <div id="alerts-container" class="space-y-3 mb-6">
+        <!-- Высокая температура -->
+        <div id="alert-temp" class="hidden bg-red-100 border-l-4 border-red-600 text-red-950 p-5 rounded-2xl shadow-sm">
+          <div class="flex items-start gap-3">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 text-red-600 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <div>
+              <p class="font-extrabold text-lg">Внимание! Риск нейтропении.</p>
+              <p class="text-sm mt-1 font-medium text-red-900">Срочно контролируйте температуру. Не давать НПВС (Нимесил), только Парацетамол 500мг по согласованию с врачом!</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Низкий кислород -->
+        <div id="alert-oxygen" class="hidden bg-rose-100 border-l-4 border-rose-600 text-rose-950 p-5 rounded-2xl shadow-sm">
+          <div class="flex items-start gap-3">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 text-rose-600 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <div>
+              <p class="font-extrabold text-lg">Внимание! Низкий кислород.</p>
+              <p class="text-sm mt-1 font-medium text-rose-900">Посадите пациента полусидя, обеспечьте свежий воздух. Если не растет — готовьтесь вызывать 103!</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ФОРМА ВВОДА (Крупные элементы) -->
+      <form id="health-form" onsubmit="saveEntry(event)" class="space-y-6">
+        
+        <!-- 1. ТЕМПЕРАТУРА (с крупными кнопками) -->
+        <div class="bg-white p-5 rounded-3xl shadow-sm border border-slate-100">
+          <label class="block text-slate-500 font-bold text-sm tracking-wide uppercase text-center mb-2">1. ТЕМПЕРАТУРА (°C)</label>
+          <div class="flex items-center justify-between gap-4">
+            <button type="button" onclick="adjustTemp(-0.1)" class="w-16 h-16 bg-slate-100 active:bg-slate-200 text-slate-800 text-2xl font-bold rounded-2xl flex items-center justify-center shadow-inner transition-colors">-0.1</button>
+            <div class="text-center shrink-0">
+              <span id="temp-display" class="text-4xl font-extrabold text-slate-900">36.6</span>
+              <span class="text-xl text-slate-400 font-bold ml-1">°C</span>
+            </div>
+            <button type="button" onclick="adjustTemp(0.1)" class="w-16 h-16 bg-red-100 active:bg-red-200 text-red-700 text-2xl font-bold rounded-2xl flex items-center justify-center shadow-inner transition-colors">+0.1</button>
+          </div>
+        </div>
+
+        <!-- 2. САТУРАЦИЯ (с крупными кнопками) -->
+        <div class="bg-white p-5 rounded-3xl shadow-sm border border-slate-100">
+          <label class="block text-slate-500 font-bold text-sm tracking-wide uppercase text-center mb-2">2. КИСЛОРОД / САТУРАЦИЯ (%)</label>
+          <div class="flex items-center justify-between gap-4">
+            <button type="button" onclick="adjustOxygen(-1)" class="w-16 h-16 bg-slate-100 active:bg-slate-200 text-slate-800 text-2xl font-bold rounded-2xl flex items-center justify-center shadow-inner transition-colors">-1%</button>
+            <div class="text-center shrink-0">
+              <span id="oxygen-display" class="text-4xl font-extrabold text-slate-900">97</span>
+              <span class="text-xl text-slate-400 font-bold ml-1">%</span>
+            </div>
+            <button type="button" onclick="adjustOxygen(1)" class="w-16 h-16 bg-sky-100 active:bg-sky-200 text-sky-700 text-2xl font-bold rounded-2xl flex items-center justify-center shadow-inner transition-colors">+1%</button>
+          </div>
+        </div>
+
+        <!-- 3. ПУЛЬС (с крупными кнопками) -->
+        <div class="bg-white p-5 rounded-3xl shadow-sm border border-slate-100">
+          <label class="block text-slate-500 font-bold text-sm tracking-wide uppercase text-center mb-2">3. ПУЛЬС (удары в мин.)</label>
+          <div class="flex items-center justify-between gap-4">
+            <button type="button" onclick="adjustPulse(-5)" class="w-16 h-16 bg-slate-100 active:bg-slate-200 text-slate-800 text-xl font-bold rounded-2xl flex items-center justify-center shadow-inner transition-colors">-5</button>
+            <div class="text-center shrink-0">
+              <span id="pulse-display" class="text-4xl font-extrabold text-slate-900">75</span>
+              <span class="text-xl text-slate-400 font-bold ml-1">уд/м</span>
+            </div>
+            <button type="button" onclick="adjustPulse(5)" class="w-16 h-16 bg-emerald-100 active:bg-emerald-200 text-emerald-700 text-xl font-bold rounded-2xl flex items-center justify-center shadow-inner transition-colors">+5</button>
+          </div>
+        </div>
+
+        <!-- 4. ДАВЛЕНИЕ (Крупный текст с быстрыми вариантами) -->
+        <div class="bg-white p-5 rounded-3xl shadow-sm border border-slate-100">
+          <label class="block text-slate-600 font-bold text-base mb-2">4. Давление (например, 120/80)</label>
+          <input type="text" id="pressure-input" value="120/80" class="w-full text-center text-2xl font-extrabold text-slate-900 bg-slate-50 border-2 border-slate-200 rounded-2xl py-3 focus:border-red-500 focus:outline-none">
+          
+          <div class="grid grid-cols-3 gap-2 mt-3">
+            <button type="button" onclick="setPressurePreset('110/70')" class="py-2 bg-slate-100 active:bg-slate-200 text-sm font-bold rounded-xl text-slate-700">110/70</button>
+            <button type="button" onclick="setPressurePreset('120/80')" class="py-2 bg-slate-100 active:bg-slate-200 text-sm font-bold rounded-xl text-slate-700">120/80</button>
+            <button type="button" onclick="setPressurePreset('130/85')" class="py-2 bg-slate-100 active:bg-slate-200 text-sm font-bold rounded-xl text-slate-700">130/85</button>
+          </div>
+        </div>
+
+        <!-- 5. ЖАЛОБЫ (Крупные чекбоксы-кнопки) -->
+        <div class="bg-white p-5 rounded-3xl shadow-sm border border-slate-100">
+          <label class="block text-slate-600 font-bold text-base mb-3">5. Что беспокоит сегодня? (Жалобы):</label>
+          <div class="space-y-2.5">
+            <button type="button" onclick="toggleComplaint('nausea')" id="c-nausea" class="w-full flex items-center justify-between text-left p-4 rounded-2xl border-2 border-slate-200 bg-slate-50 text-base font-bold text-slate-800 transition-all select-none">
+              <span class="flex items-center gap-3">
+                <span class="text-2xl">🤢</span> Тошнота
+              </span>
+              <span class="checkbox-indicator w-7 h-7 border-2 border-slate-300 rounded-lg bg-white flex items-center justify-center"></span>
+            </button>
+            <button type="button" onclick="toggleComplaint('stomach_burn')" id="c-stomach_burn" class="w-full flex items-center justify-between text-left p-4 rounded-2xl border-2 border-slate-200 bg-slate-50 text-base font-bold text-slate-800 transition-all select-none">
+              <span class="flex items-center gap-3">
+                <span class="text-2xl">🔥</span> Жжение в желудке
+              </span>
+              <span class="checkbox-indicator w-7 h-7 border-2 border-slate-300 rounded-lg bg-white flex items-center justify-center"></span>
+            </button>
+            <button type="button" onclick="toggleComplaint('nosebleed')" id="c-nosebleed" class="w-full flex items-center justify-between text-left p-4 rounded-2xl border-2 border-slate-200 bg-slate-50 text-base font-bold text-slate-800 transition-all select-none">
+              <span class="flex items-center gap-3">
+                <span class="text-2xl">🩸</span> Кровь из носа
+              </span>
+              <span class="checkbox-indicator w-7 h-7 border-2 border-slate-300 rounded-lg bg-white flex items-center justify-center"></span>
+            </button>
+            <button type="button" onclick="toggleComplaint('weakness')" id="c-weakness" class="w-full flex items-center justify-between text-left p-4 rounded-2xl border-2 border-slate-200 bg-slate-50 text-base font-bold text-slate-800 transition-all select-none">
+              <span class="flex items-center gap-3">
+                <span class="text-2xl">😵‍💫</span> Слабость / Шаткость
+              </span>
+              <span class="checkbox-indicator w-7 h-7 border-2 border-slate-300 rounded-lg bg-white flex items-center justify-center"></span>
+            </button>
+            <button type="button" onclick="toggleComplaint('bone_pain')" id="c-bone_pain" class="w-full flex items-center justify-between text-left p-4 rounded-2xl border-2 border-slate-200 bg-slate-50 text-base font-bold text-slate-800 transition-all select-none">
+              <span class="flex items-center gap-3">
+                <span class="text-2xl">🦴</span> Боль в костях
+              </span>
+              <span class="checkbox-indicator w-7 h-7 border-2 border-slate-300 rounded-lg bg-white flex items-center justify-center"></span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 6. ПРИНЯТЫЕ ЛЕКАРСТВА (с быстрыми кликами) -->
+        <div class="bg-white p-5 rounded-3xl shadow-sm border border-slate-100">
+          <label class="block text-slate-600 font-bold text-base mb-2">6. Какие лекарства приняли?</label>
+          <input type="text" id="medications-input" placeholder="Например: Алмагель, Парацетамол" class="w-full text-base bg-slate-50 border-2 border-slate-200 rounded-2xl px-4 py-3 focus:border-red-500 focus:outline-none mb-3 font-semibold text-slate-800">
+          
+          <p class="text-xs text-slate-400 font-bold uppercase tracking-wider mb-2">Нажмите, чтобы вставить:</p>
+          <div class="flex flex-wrap gap-2">
+            <button type="button" onclick="addMedicationPreset('Ничего не принимал(а)')" class="px-3 py-2 bg-slate-100 active:bg-slate-200 text-xs font-bold rounded-xl text-slate-600">Не принимал лекарства</button>
+            <button type="button" onclick="addMedicationPreset('Парацетамол 500мг')" class="px-3 py-2 bg-slate-100 active:bg-slate-200 text-xs font-bold rounded-xl text-slate-600">Парацетамол 500мг</button>
+            <button type="button" onclick="addMedicationPreset('Алмагель')" class="px-3 py-2 bg-slate-100 active:bg-slate-200 text-xs font-bold rounded-xl text-slate-600">Алмагель</button>
+            <button type="button" onclick="addMedicationPreset('Ондансетрон 4мг')" class="px-3 py-2 bg-slate-100 active:bg-slate-200 text-xs font-bold rounded-xl text-slate-600">Ондансетрон 4мг</button>
+          </div>
+        </div>
+
+        <!-- 7. КОММЕНТАРИЙ (с быстрыми заготовками) -->
+        <div class="bg-white p-5 rounded-3xl shadow-sm border border-slate-100">
+          <label class="block text-slate-600 font-bold text-base mb-2">7. Как общее самочувствие? (Комментарий)</label>
+          <textarea id="comment-input" rows="3" placeholder="Опишите самочувствие своими словами..." class="w-full text-base bg-slate-50 border-2 border-slate-200 rounded-2xl px-4 py-3 focus:border-red-500 focus:outline-none mb-3 font-semibold text-slate-800"></textarea>
+          
+          <p class="text-xs text-slate-400 font-bold uppercase tracking-wider mb-2">Быстрый ответ:</p>
+          <div class="flex flex-wrap gap-2">
+            <button type="button" onclick="setCommentPreset('Чувствую себя нормально')" class="px-3 py-2 bg-slate-100 active:bg-slate-200 text-xs font-bold rounded-xl text-slate-600">Всё нормально</button>
+            <button type="button" onclick="setCommentPreset('Хороший аппетит, много сплю')" class="px-3 py-2 bg-slate-100 active:bg-slate-200 text-xs font-bold rounded-xl text-slate-600">Хороший аппетит</button>
+            <button type="button" onclick="setCommentPreset('Есть небольшая слабость')" class="px-3 py-2 bg-slate-100 active:bg-slate-200 text-xs font-bold rounded-xl text-slate-600">Слабость</button>
+          </div>
+        </div>
+
+        <!-- КНОПКА СОХРАНЕНИЯ -->
+        <button type="submit" class="w-full bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 active:scale-[0.98] text-white font-extrabold text-xl py-5 rounded-3xl shadow-lg transition-all flex items-center justify-center gap-3">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+          </svg>
+          СОХРАНИТЬ ЗАПИСЬ
+        </button>
+
+      </form>
+    </div>
+
+    <!-- ВКЛАДКА 2: ИСТОРИЯ -->
+    <div id="view-history" class="hidden">
+      <!-- Заголовок количества записей -->
+      <div class="flex justify-between items-center mb-4">
+        <span class="text-sm font-extrabold text-slate-500 uppercase tracking-wider">Всего записей: <span id="records-count" class="text-slate-800 font-black">0</span></span>
+        <button onclick="clearAllLocalData()" class="text-xs text-red-500 hover:text-red-700 font-extrabold flex items-center gap-1 bg-red-50 py-1.5 px-3 rounded-xl">
+          Очистить локально
+        </button>
+      </div>
+
+      <!-- Контейнер для списка карточек -->
+      <div id="history-list" class="space-y-4">
+        <!-- Записи будут добавляться сюда через JS -->
+        <div class="bg-white p-8 rounded-3xl text-center border-2 border-dashed border-slate-200">
+          <p class="text-slate-400 font-bold text-lg">Записей пока нет.</p>
+          <p class="text-slate-400 text-xs mt-1">Добавьте первую запись во вкладке «Ввод данных»!</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- FIREBASE SDK И СКРИПТЫ -->
+  <!-- Firebase App -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <!-- Firebase Firestore -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+
+  <script>
+    // --- НАСТРОЙКИ FIREBASE ---
+    // ВСТАВЬТЕ СЮДА СВОИ КЛЮЧИ ИЗ КОНСОЛИ FIREBASE:
+    const firebaseConfig = {
+      apiKey: "",
+      authDomain: "",
+      projectId: "",
+      storageBucket: "",
+      messagingSenderId: "",
+      appId: ""
+    };
+
+    // Глобальные переменные данных
+    let db = null;
+    let records = [];
+    let activeTab = 'entry';
+    
+    // Текущие значения формы
+    let formValues = {
+      temp: 36.6,
+      oxygen: 97,
+      pulse: 75,
+      pressure: '120/80',
+      complaints: [],
+      medications: '',
+      comment: ''
+    };
+
+    // Словарь перевода жалоб для вывода в Истории
+    const COMPLAINTS_DICT = {
+      nausea: { label: "Тошнота", emoji: "🤢" },
+      stomach_burn: { label: "Жжение в желудке", emoji: "🔥" },
+      nosebleed: { label: "Кровь из носа", emoji: "🩸" },
+      weakness: { label: "Слабость / Шаткость", emoji: "😵‍💫" },
+      bone_pain: { label: "Боль в костях", emoji: "🦴" }
+    };
+
+    // Инициализация Firebase при старте страницы
+    function initFirebase() {
+      if (firebaseConfig && firebaseConfig.apiKey && firebaseConfig.projectId) {
+        try {
+          firebase.initializeApp(firebaseConfig);
+          db = firebase.firestore();
+          console.log("Firebase Firestore подключен успешно!");
+          document.getElementById('demo-banner').classList.add('hidden');
+          
+          // Подгрузка данных в реальном времени
+          db.collection("records").orderBy("createdAtMs", "desc").onSnapshot((snapshot) => {
+            records = [];
+            snapshot.forEach((doc) => {
+              records.push({ id: doc.id, ...doc.data() });
+            });
+            renderHistory();
+          }, (err) => {
+            console.error("Ошибка прав Firestore, fallback на LocalStorage:", err);
+            loadLocalStorageRecords();
+          });
+        } catch (e) {
+          console.error("Ошибка инициализации Firebase:", e);
+          loadLocalStorageRecords();
+        }
+      } else {
+        console.log("Конфигурация Firebase пуста. Работаем в Локальном Режиме.");
+        loadLocalStorageRecords();
+      }
+    }
+
+    // Загрузка локальных данных
+    function loadLocalStorageRecords() {
+      const saved = localStorage.getItem("chemo_tracker_records");
+      if (saved) {
+        try {
+          records = JSON.parse(saved);
+          records.sort((a, b) => b.createdAtMs - a.createdAtMs);
+        } catch (e) {
+          records = [];
+        }
+      }
+      renderHistory();
+    }
+
+    // Изменение вкладки
+    function switchTab(tab) {
+      activeTab = tab;
+      
+      const tabEntry = document.getElementById('tab-entry');
+      const tabHistory = document.getElementById('tab-history');
+      const viewEntry = document.getElementById('view-entry');
+      const viewHistory = document.getElementById('view-history');
+
+      if (tab === 'entry') {
+        tabEntry.className = "flex items-center justify-center gap-2 py-4 px-3 rounded-xl text-lg font-bold transition-all bg-red-500 text-white shadow-md";
+        tabHistory.className = "flex items-center justify-center gap-2 py-4 px-3 rounded-xl text-lg font-bold transition-all text-slate-500 hover:bg-slate-100";
+        viewEntry.classList.remove('hidden');
+        viewHistory.classList.add('hidden');
+      } else {
+        tabHistory.className = "flex items-center justify-center gap-2 py-4 px-3 rounded-xl text-lg font-bold transition-all bg-red-500 text-white shadow-md";
+        tabEntry.className = "flex items-center justify-center gap-2 py-4 px-3 rounded-xl text-lg font-bold transition-all text-slate-500 hover:bg-slate-100";
+        viewEntry.classList.add('hidden');
+        viewHistory.classList.remove('hidden');
+        renderHistory();
+      }
+    }
+
+    // Регулировка Температуры
+    function adjustTemp(val) {
+      formValues.temp = parseFloat((formValues.temp + val).toFixed(1));
+      if (formValues.temp < 34.0) formValues.temp = 34.0;
+      if (formValues.temp > 43.0) formValues.temp = 43.0;
+      
+      document.getElementById('temp-display').innerText = formValues.temp;
+      checkAlerts();
+    }
+
+    // Регулировка Кислорода
+    function adjustOxygen(val) {
+      formValues.oxygen = formValues.oxygen + val;
+      if (formValues.oxygen < 50) formValues.oxygen = 50;
+      if (formValues.oxygen > 100) formValues.oxygen = 100;
+
+      document.getElementById('oxygen-display').innerText = formValues.oxygen;
+      checkAlerts();
+    }
+
+    // Регулировка Пульса
+    function adjustPulse(val) {
+      formValues.pulse = formValues.pulse + val;
+      if (formValues.pulse < 30) formValues.pulse = 30;
+      if (formValues.pulse > 220) formValues.pulse = 220;
+
+      document.getElementById('pulse-display').innerText = formValues.pulse;
+    }
+
+    // Задать значение давления
+    function setPressurePreset(val) {
+      document.getElementById('pressure-input').value = val;
+    }
+
+    // Добавить препарат
+    function addMedicationPreset(val) {
+      const input = document.getElementById('medications-input');
+      if (input.value) {
+        input.value = input.value + ", " + val;
+      } else {
+        input.value = val;
+      }
+    }
+
+    // Задать комментарий
+    function setCommentPreset(val) {
+      document.getElementById('comment-input').value = val;
+    }
+
+    // Переключение чекбоксов-кнопок жалоб
+    function toggleComplaint(id) {
+      const btn = document.getElementById('c-' + id);
+      const index = formValues.complaints.indexOf(id);
+      
+      if (index > -1) {
+        // Удалить
+        formValues.complaints.splice(index, 1);
+        btn.classList.remove('border-red-500', 'bg-red-50', 'text-red-900');
+        btn.classList.add('border-slate-200', 'bg-slate-50', 'text-slate-800');
+        btn.querySelector('.checkbox-indicator').innerHTML = '';
+        btn.querySelector('.checkbox-indicator').className = "checkbox-indicator w-7 h-7 border-2 border-slate-300 rounded-lg bg-white flex items-center justify-center";
+      } else {
+        // Добавить
+        formValues.complaints.push(id);
+        btn.classList.remove('border-slate-200', 'bg-slate-50', 'text-slate-800');
+        btn.classList.add('border-red-500', 'bg-red-50', 'text-red-900');
+        btn.querySelector('.checkbox-indicator').innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" /></svg>';
+        btn.querySelector('.checkbox-indicator').className = "checkbox-indicator w-7 h-7 border-red-500 rounded-lg bg-red-100 flex items-center justify-center";
+      }
+    }
+
+    // Функция проверки критических уровней (динамические алерты)
+    function checkAlerts() {
+      const alertTemp = document.getElementById('alert-temp');
+      const alertOxygen = document.getElementById('alert-oxygen');
+
+      // Температура >= 37.5
+      if (formValues.temp >= 37.5) {
+        alertTemp.classList.remove('hidden');
+      } else {
+        alertTemp.classList.add('hidden');
+      }
+
+      // Сатурация < 92
+      if (formValues.oxygen < 92) {
+        alertOxygen.classList.remove('hidden');
+      } else {
+        alertOxygen.classList.add('hidden');
+      }
+    }
+
+    // Сохранить запись
+    function saveEntry(e) {
+      e.preventDefault();
+
+      const pressureInput = document.getElementById('pressure-input').value;
+      const medicationsInput = document.getElementById('medications-input').value;
+      const commentInput = document.getElementById('comment-input').value;
+
+      // Форматирование даты
+      const now = new Date();
+      const day = String(now.getDate()).padStart(2, '0');
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const year = now.getFullYear();
+      const hours = String(now.getHours()).padStart(2, '0');
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      const timestampStr = day + "." + month + "." + year + " " + hours + ":" + minutes;
+
+      const record = {
+        timestamp: timestampStr,
+        createdAtMs: Date.now(),
+        temperature: formValues.temp,
+        saturation: formValues.oxygen,
+        pulse: formValues.pulse,
+        pressure: pressureInput || '120/80',
+        complaints: [...formValues.complaints],
+        medications: medicationsInput || 'Нет данных',
+        comment: commentInput || 'Без комментария'
+      };
+
+      if (db) {
+        db.collection("records").add(record)
+          .then(() => {
+            showToast();
+            resetForm();
+          })
+          .catch((err) => {
+            console.error("Ошибка сохранения в Firebase, сохраняем локально:", err);
+            saveLocal(record);
+          });
+      } else {
+        saveLocal(record);
+      }
+    }
+
+    function saveLocal(record) {
+      let localRecords = [];
+      const saved = localStorage.getItem("chemo_tracker_records");
+      if (saved) {
+        try {
+          localRecords = JSON.parse(saved);
+        } catch (e) {
+          localRecords = [];
+        }
+      }
+      localRecords.push(record);
+      localRecords.sort((a, b) => b.createdAtMs - a.createdAtMs);
+      localStorage.setItem("chemo_tracker_records", JSON.stringify(localRecords));
+      records = localRecords;
+      
+      showToast();
+      resetForm();
+      renderHistory();
+    }
+
+    // Показать плашку успешного сохранения
+    function showToast() {
+      const toast = document.getElementById('save-toast');
+      toast.classList.remove('hidden');
+      setTimeout(() => {
+        toast.classList.add('hidden');
+      }, 3000);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // Очистить форму после сохранения
+    function resetForm() {
+      // Сбросить только текстовые поля и жалобы, пульс и температуру оставим дефолтными
+      document.getElementById('medications-input').value = '';
+      document.getElementById('comment-input').value = '';
+      
+      // Сброс жалоб
+      const activeComplaints = [...formValues.complaints];
+      activeComplaints.forEach((id) => {
+        toggleComplaint(id);
+      });
+      
+      formValues.complaints = [];
+      formValues.temp = 36.6;
+      formValues.oxygen = 97;
+      formValues.pulse = 75;
+      
+      document.getElementById('temp-display').innerText = '36.6';
+      document.getElementById('oxygen-display').innerText = '97';
+      document.getElementById('pulse-display').innerText = '75';
+      document.getElementById('pressure-input').value = '120/80';
+      
+      checkAlerts();
+    }
+
+    // Удалить запись
+    function deleteRecord(id, createdAtMs) {
+      if (confirm("Вы уверены, что хотите удалить эту запись?")) {
+        if (db && id) {
+          db.collection("records").doc(id).delete()
+            .catch(err => console.error("Ошибка удаления:", err));
+        } else {
+          records = records.filter(r => r.createdAtMs !== createdAtMs);
+          localStorage.setItem("chemo_tracker_records", JSON.stringify(records));
+          renderHistory();
+        }
+      }
+    }
+
+    // Полная очистка локальных записей
+    function clearAllLocalData() {
+      if (confirm("ВНИМАНИЕ! Вы хотите удалить ВСЕ локальные записи на этом устройстве? Это действие необратимо.")) {
+        localStorage.removeItem("chemo_tracker_records");
+        records = [];
+        renderHistory();
+      }
+    }
+
+    // Рендер Вкладки "История"
+    function renderHistory() {
+      const container = document.getElementById('history-list');
+      const countSpan = document.getElementById('records-count');
+      
+      countSpan.innerText = records.length;
+
+      if (records.length === 0) {
+        container.innerHTML = `<div class="bg-white p-8 rounded-3xl text-center border-2 border-dashed border-slate-200">
+          <p class="text-slate-400 font-bold text-lg">Записей пока нет.</p>
+          <p class="text-slate-400 text-xs mt-1">Добавьте первую запись во вкладке «Ввод данных»!</p>
+        </div>`;
+        return;
+      }
+
+      let html = '';
+      records.forEach((rec) => {
+        const hasHighTemp = rec.temperature >= 37.5;
+        const hasLowOxygen = rec.saturation < 92;
+
+        // Построение жалоб
+        let complaintsHtml = '';
+        if (rec.complaints && rec.complaints.length > 0) {
+          complaintsHtml = '<div class="mt-3 flex flex-wrap gap-1.5">';
+          rec.complaints.forEach((cId) => {
+            const data = COMPLAINTS_DICT[cId] || { label: cId, emoji: '⚠️' };
+            complaintsHtml += `<span class="bg-red-50 text-red-800 text-xs font-bold px-3 py-1.5 rounded-xl border border-red-100 inline-flex items-center gap-1">
+              <span>\${data.emoji}</span> \${data.label}
+            </span>`;
+          });
+          complaintsHtml += '</div>';
+        } else {
+          complaintsHtml = `<div class="mt-2 text-xs font-bold text-slate-400 uppercase tracking-wider">Жалоб нет</div>`;
+        }
+
+        // Выделение критических значений
+        const tempClass = hasHighTemp ? 'text-red-600 bg-red-100 border-red-200 px-2.5 py-1 rounded-xl font-black' : 'text-slate-800';
+        const oxygenClass = hasLowOxygen ? 'text-rose-600 bg-rose-100 border-rose-200 px-2.5 py-1 rounded-xl font-black animate-pulse' : 'text-slate-800';
+
+        const idArg = rec.id ? `'\${rec.id}'` : 'null';
+
+        html += `
+        <div class="bg-white p-5 rounded-3xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow relative">
+          <!-- Дата и время -->
+          <div class="flex justify-between items-center border-b border-slate-100 pb-3 mb-3">
+            <span class="text-base font-black text-slate-800">\${rec.timestamp}</span>
+            <button onclick="deleteRecord(\${idArg}, \${rec.createdAtMs})" class="text-slate-300 hover:text-red-500 transition-colors p-1" title="Удалить запись">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </button>
+          </div>
+
+          <!-- Сетка показателей -->
+          <div class="grid grid-cols-2 gap-3 mb-4">
+            <div class="bg-slate-50 p-3 rounded-2xl flex items-center gap-3">
+              <span class="text-2xl shrink-0">🌡️</span>
+              <div>
+                <p class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Темп.</p>
+                <p class="text-lg font-extrabold \${tempClass}">\${rec.temperature} °C</p>
+              </div>
+            </div>
+            
+            <div class="bg-slate-50 p-3 rounded-2xl flex items-center gap-3">
+              <span class="text-2xl shrink-0">💨</span>
+              <div>
+                <p class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Кислород</p>
+                <p class="text-lg font-extrabold \${oxygenClass}">\${rec.saturation} %</p>
+              </div>
+            </div>
+
+            <div class="bg-slate-50 p-3 rounded-2xl flex items-center gap-3">
+              <span class="text-2xl shrink-0">💓</span>
+              <div>
+                <p class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Пульс</p>
+                <p class="text-lg font-extrabold text-slate-800">\${rec.pulse} уд/м</p>
+              </div>
+            </div>
+
+            <div class="bg-slate-50 p-3 rounded-2xl flex items-center gap-3">
+              <span class="text-2xl shrink-0">🩺</span>
+              <div>
+                <p class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Давление</p>
+                <p class="text-lg font-extrabold text-slate-800">\${rec.pressure}</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Предупреждающие баннеры на карточке в Истории -->
+          \${hasHighTemp ? `
+          <div class="bg-red-50 border border-red-200 text-red-950 px-3 py-2.5 rounded-xl text-xs font-bold mb-3 flex items-start gap-2">
+            <span class="text-sm">⚠️</span>
+            <span>Риск нейтропении! Контроль врача. Не давать Нимесил! Только Парацетамол.</span>
+          </div>
+          ` : ''}
+
+          \${hasLowOxygen ? `
+          <div class="bg-rose-50 border border-rose-200 text-rose-950 px-3 py-2.5 rounded-xl text-xs font-bold mb-3 flex items-start gap-2">
+            <span class="text-sm">⚠️</span>
+            <span>Сатурация низкая! Дайте кислород, посадите полусидя. При < 90 вызывайте 103!</span>
+          </div>
+          ` : ''}
+
+          <!-- Препараты -->
+          <div class="mb-2">
+            <p class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Принятые препараты:</p>
+            <p class="text-sm font-semibold text-slate-800 mt-0.5">\${rec.medications}</p>
+          </div>
+
+          <!-- Жалобы -->
+          <div class="mb-2">
+            <p class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Жалобы пациента:</p>
+            \${complaintsHtml}
+          </div>
+
+          <!-- Комментарий -->
+          <div class="mt-3 pt-3 border-t border-slate-50">
+            <p class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Комментарий:</p>
+            <p class="text-sm font-medium text-slate-600 mt-1 italic">"\${rec.comment}"</p>
+          </div>
+
+        </div>
+        `;
+      });
+
+      container.innerHTML = html;
+    }
+
+    // Инициализация при загрузке
+    window.onload = function() {
+      initFirebase();
+      checkAlerts();
+    };
+  </script>
+</body>
+</html>
