@@ -80,6 +80,8 @@ export default function App() {
   // Status and notification states
   const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
   const [records, setRecords] = useState<HealthRecord[]>([]);
+  const [recordToDelete, setRecordToDelete] = useState<HealthRecord | null>(null);
+  const [isDeleting, setIsDeleting] = useState<boolean>(false);
 
   // Fetch all health records from our backend
   const fetchRecords = async () => {
@@ -237,19 +239,22 @@ export default function App() {
     }
   };
 
-  // Delete specific record
-  const handleDeleteRecord = async (recordToDelete: HealthRecord) => {
-    const confirmDelete = window.confirm(
-      `Ви впевнені, що хочете видалити запис від ${recordToDelete.timestamp}?`
-    );
-    if (!confirmDelete) return;
+  // Delete specific record (opens modal)
+  const handleDeleteRecord = (record: HealthRecord) => {
+    setRecordToDelete(record);
+  };
 
+  // Confirmed delete record execution
+  const handleConfirmDelete = async () => {
+    if (!recordToDelete) return;
+    setIsDeleting(true);
     try {
       const id = recordToDelete.id || recordToDelete.createdAtMs;
       const res = await fetch(`/api/records/${id}`, {
         method: "DELETE"
       });
       if (res.ok) {
+        setRecordToDelete(null);
         fetchRecords();
       } else {
         alert("Помилка при видаленні запису з сервера.");
@@ -257,6 +262,8 @@ export default function App() {
     } catch (e) {
       console.error("Delete failed:", e);
       alert("Не вдалося видалити запис.");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -858,6 +865,120 @@ export default function App() {
         )}
 
       </div>
+
+      {/* CUSTOM CONFIRMATION MODAL */}
+      {recordToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl border border-slate-100 overflow-hidden transform scale-100 transition-all duration-300">
+            {/* Modal Header */}
+            <div className="bg-rose-50 px-6 py-5 border-b border-rose-100 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-rose-500 flex items-center justify-center text-white shrink-0">
+                <Trash2 className="w-5 h-5 stroke-[2.5]" />
+              </div>
+              <div>
+                <h3 className="font-black text-rose-950 text-lg leading-tight">
+                  Підтвердження видалення
+                </h3>
+                <p className="text-xs font-semibold text-rose-700/80 mt-0.5">
+                  Цю дію неможливо скасувати
+                </p>
+              </div>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 space-y-4">
+              <p className="text-slate-600 text-sm font-semibold">
+                Ви дійсно бажаєте остаточно видалити медичний запис пацієнта від:
+              </p>
+              
+              {/* Record Summary Card */}
+              <div className="bg-slate-50 border border-slate-200/60 rounded-xl p-4 space-y-3">
+                <div className="text-xs font-black text-slate-400 uppercase tracking-wider">
+                  Дата і час: <span className="text-slate-700 font-bold">{recordToDelete.timestamp}</span>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  {recordToDelete.temperature && (
+                    <div className="bg-white px-2.5 py-1.5 rounded-lg border border-slate-100 font-semibold text-slate-700">
+                      🌡️ Темп: <span className="font-extrabold">{recordToDelete.temperature}°C</span>
+                    </div>
+                  )}
+                  {recordToDelete.saturation && (
+                    <div className="bg-white px-2.5 py-1.5 rounded-lg border border-slate-100 font-semibold text-slate-700">
+                      💨 O2: <span className="font-extrabold">{recordToDelete.saturation}%</span>
+                    </div>
+                  )}
+                  {recordToDelete.pulse && (
+                    <div className="bg-white px-2.5 py-1.5 rounded-lg border border-slate-100 font-semibold text-slate-700">
+                      💓 Пульс: <span className="font-extrabold">{recordToDelete.pulse} уд/хв</span>
+                    </div>
+                  )}
+                  {recordToDelete.pressure && (
+                    <div className="bg-white px-2.5 py-1.5 rounded-lg border border-slate-100 font-semibold text-slate-700">
+                      🩺 Тиск: <span className="font-extrabold">{recordToDelete.pressure}</span>
+                    </div>
+                  )}
+                </div>
+
+                {recordToDelete.complaints && recordToDelete.complaints.length > 0 && (
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Скарги:</span>
+                    <div className="flex flex-wrap gap-1">
+                      {recordToDelete.complaints.map((cId) => {
+                        const match = COMPLAINT_OPTIONS.find((o) => o.id === cId) || {
+                          label: cId,
+                          emoji: "⚠️"
+                        };
+                        return (
+                          <span key={cId} className="bg-red-50 text-red-800 text-[10px] font-bold px-2 py-0.5 rounded border border-red-100/60">
+                            {match.emoji} {match.label}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {recordToDelete.comment && recordToDelete.comment !== "Без коментаря" && (
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Коментар:</span>
+                    <p className="text-xs text-slate-600 font-medium italic">
+                      "{recordToDelete.comment}"
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Modal Actions */}
+            <div className="bg-slate-50 px-6 py-4 border-t border-slate-100 flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setRecordToDelete(null)}
+                disabled={isDeleting}
+                className="px-4 py-2.5 text-sm font-bold text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+              >
+                Скасувати
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDelete}
+                disabled={isDeleting}
+                className="px-5 py-2.5 text-sm font-bold text-white bg-rose-600 hover:bg-rose-700 active:scale-[0.98] rounded-lg transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+              >
+                {isDeleting ? (
+                  <>
+                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                    Видалення...
+                  </>
+                ) : (
+                  "Так, видалити"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
