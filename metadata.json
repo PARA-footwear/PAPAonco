@@ -1,6 +1,6 @@
 {
-  "name": "Медицинский трекер",
-  "description": "Медицинский трекер для мониторинга состояния онкобольного пациента после химиотерапии.",
+  "name": "Медичний трекер",
+  "description": "Медичний трекер для моніторингу стану онкохворого пацієнта після хіміотерапії.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
