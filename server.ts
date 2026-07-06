@@ -15,7 +15,7 @@ import {
 } from "firebase/firestore";
 
 // Read from environment variables, or fallback to the user's explicit config
-const firebaseConfig = {
+let firebaseConfig = {
   apiKey: process.env.FIREBASE_API_KEY || "AIzaSyAlbFM0xgVZM9QyB4OdJ-jol2TiwqZuDPE",
   authDomain: process.env.FIREBASE_AUTH_DOMAIN || "papaonco-49365.firebaseapp.com",
   projectId: process.env.FIREBASE_PROJECT_ID || "papaonco-49365",
@@ -24,15 +24,38 @@ const firebaseConfig = {
   appId: process.env.FIREBASE_APP_ID || "1:509410271140:web:60e8d82ce29493545beb31"
 };
 
+let databaseId: string | undefined = undefined;
+
+const CONFIG_PATH = path.join(process.cwd(), "firebase-applet-config.json");
+if (fs.existsSync(CONFIG_PATH)) {
+  try {
+    const fileConfig = JSON.parse(fs.readFileSync(CONFIG_PATH, "utf8"));
+    firebaseConfig = {
+      apiKey: fileConfig.apiKey || firebaseConfig.apiKey,
+      authDomain: fileConfig.authDomain || firebaseConfig.authDomain,
+      projectId: fileConfig.projectId || firebaseConfig.projectId,
+      storageBucket: fileConfig.storageBucket || firebaseConfig.storageBucket,
+      messagingSenderId: fileConfig.messagingSenderId || firebaseConfig.messagingSenderId,
+      appId: fileConfig.appId || firebaseConfig.appId,
+    };
+    if (fileConfig.firestoreDatabaseId) {
+      databaseId = fileConfig.firestoreDatabaseId;
+    }
+    console.log("Loaded Firebase configuration from firebase-applet-config.json. databaseId:", databaseId);
+  } catch (err) {
+    console.error("Failed to read firebase-applet-config.json:", err);
+  }
+}
+
 // Initialize Firebase App & Firestore
 let db: any = null;
 let isFirebaseAvailable = false;
 
 try {
   const fbApp = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
-  db = getFirestore(fbApp);
+  db = databaseId ? getFirestore(fbApp, databaseId) : getFirestore(fbApp);
   isFirebaseAvailable = true;
-  console.log("Successfully connected to Firebase Firestore!");
+  console.log(`Successfully connected to Firebase Firestore! (Project: ${firebaseConfig.projectId}, Database ID: ${databaseId || "default"})`);
 } catch (error) {
   console.error("Firebase initialization failed. Falling back to local storage file:", error);
 }
