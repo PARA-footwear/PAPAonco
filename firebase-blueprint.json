@@ -1,0 +1,31 @@
+{
+  "entities": {
+    "Record": {
+      "title": "Medical Record",
+      "description": "Health indicator recordings for patients undergoing chemotherapy",
+      "type": "object",
+      "properties": {
+        "timestamp": { "type": "string", "description": "Human-readable date and time" },
+        "createdAtMs": { "type": "integer", "description": "Creation timestamp in milliseconds" },
+        "temperature": { "type": ["number", "null"] },
+        "saturation": { "type": ["number", "null"] },
+        "pulse": { "type": ["number", "null"] },
+        "pressureSys": { "type": ["number", "null"] },
+        "pressureDia": { "type": ["number", "null"] },
+        "bloodSugar": { "type": ["number", "null"] },
+        "weight": { "type": ["number", "null"] },
+        "complaints": { "type": "array", "items": { "type": "string" } },
+        "medications": { "type": "string" },
+        "comment": { "type": "string" },
+        "status": { "type": "string", "enum": ["normal", "warning", "critical"] }
+      },
+      "required": ["timestamp", "createdAtMs", "status"]
+    }
+  },
+  "firestore": {
+    "/records/{recordId}": {
+      "schema": "Record",
+      "description": "Health measurements and patient symptoms"
+    }
+  }
+}
