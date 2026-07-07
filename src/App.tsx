@@ -498,48 +498,48 @@ export default function App() {
         {/* NAVIGATION TABS */}
         <div className="bg-white border-b border-slate-200/80">
           <div className="max-w-5xl mx-auto px-4 sm:px-6 flex justify-between items-center gap-2">
-            <nav className="grid grid-cols-3 gap-1 py-2 w-full sm:flex sm:w-auto sm:gap-1.5">
+            <nav className="grid grid-cols-3 gap-1 py-2 w-full md:flex md:w-auto md:gap-1.5">
               <button
                 onClick={() => setActiveTab("entry")}
-                className={`flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-1 sm:px-5 py-2.5 sm:py-3 rounded-xl text-[10px] sm:text-sm font-bold transition-all cursor-pointer text-center ${
+                className={`flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 px-1 md:px-5 py-2.5 md:py-3 rounded-xl text-[10px] md:text-sm font-bold transition-all cursor-pointer text-center ${
                   activeTab === "entry"
                     ? "bg-slate-900 text-white shadow-md shadow-slate-900/15"
                     : "text-slate-500 hover:text-slate-800 hover:bg-slate-100"
                 }`}
               >
                 <PlusCircle className="w-4 h-4 shrink-0" />
-                <span className="hidden sm:inline">Введення даних</span>
-                <span className="sm:hidden">Введення</span>
+                <span className="hidden md:inline">Введення даних</span>
+                <span className="md:hidden">Введення</span>
               </button>
               <button
                 onClick={() => setActiveTab("dashboard")}
-                className={`flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-1 sm:px-5 py-2.5 sm:py-3 rounded-xl text-[10px] sm:text-sm font-bold transition-all cursor-pointer text-center ${
+                className={`flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 px-1 md:px-5 py-2.5 md:py-3 rounded-xl text-[10px] md:text-sm font-bold transition-all cursor-pointer text-center ${
                   activeTab === "dashboard"
                     ? "bg-slate-900 text-white shadow-md shadow-slate-900/15"
                     : "text-slate-500 hover:text-slate-800 hover:bg-slate-100"
                 }`}
               >
                 <TrendingUp className="w-4 h-4 shrink-0" />
-                <span className="hidden sm:inline">Динаміка та графіки</span>
-                <span className="sm:hidden">Динаміка</span>
+                <span className="hidden md:inline">Динаміка та графіки</span>
+                <span className="md:hidden">Динаміка</span>
               </button>
               <button
                 onClick={() => setActiveTab("history")}
-                className={`flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-1 sm:px-5 py-2.5 sm:py-3 rounded-xl text-[10px] sm:text-sm font-bold transition-all cursor-pointer text-center ${
+                className={`flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 px-1 md:px-5 py-2.5 md:py-3 rounded-xl text-[10px] md:text-sm font-bold transition-all cursor-pointer text-center ${
                   activeTab === "history"
                     ? "bg-slate-900 text-white shadow-md shadow-slate-900/15"
                     : "text-slate-500 hover:text-slate-800 hover:bg-slate-100"
                 }`}
               >
                 <History className="w-4 h-4 shrink-0" />
-                <span className="hidden sm:inline">Історія щоденника</span>
-                <span className="sm:hidden">Історія</span>
+                <span className="hidden md:inline">Історія щоденника</span>
+                <span className="md:hidden">Історія</span>
               </button>
             </nav>
 
             <button
               onClick={() => setIsExporting(true)}
-              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 transition-colors text-rose-700 font-extrabold text-xs rounded-xl border border-rose-200 shrink-0"
+              className="hidden md:flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 transition-colors text-rose-700 font-extrabold text-xs rounded-xl border border-rose-200 shrink-0"
             >
               <FileText className="w-3.5 h-3.5" />
               Звіт для лікаря
@@ -1381,9 +1381,20 @@ export default function App() {
               {/* FILTERS TOOLBAR */}
               <div className="bg-white p-4 rounded-2xl border border-slate-200/60 shadow-sm flex flex-col md:flex-row gap-4 items-center justify-between">
                 
-                {/* Total Counter */}
-                <div className="text-slate-500 font-extrabold text-xs tracking-wider uppercase">
-                  Всього відфільтровано записів: <span className="text-slate-800 font-black text-sm">{filteredRecords.length}</span>
+                {/* Total Counter & Mobile Report Trigger */}
+                <div className="flex justify-between items-center w-full md:w-auto gap-3">
+                  <div className="text-slate-500 font-extrabold text-xs tracking-wider uppercase">
+                    Всього відфільтровано записів: <span className="text-slate-800 font-black text-sm">{filteredRecords.length}</span>
+                  </div>
+                  
+                  {/* Doctor Report Button specifically for Mobile/Tablet layout */}
+                  <button
+                    onClick={() => setIsExporting(true)}
+                    className="flex md:hidden items-center gap-1 px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 transition-colors text-rose-700 font-extrabold text-[11px] rounded-lg border border-rose-200 shrink-0"
+                  >
+                    <FileText className="w-3.5 h-3.5" />
+                    Звіт
+                  </button>
                 </div>
 
                 <div className="flex flex-wrap gap-2.5 items-center">
