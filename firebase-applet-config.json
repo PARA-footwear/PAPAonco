@@ -1,10 +1,9 @@
 {
-  "projectId": "gen-lang-client-0684180473",
-  "appId": "1:21108370055:web:dcf461eb6955467b21e622",
-  "apiKey": "AIzaSyDqxGDWgx2ivxcyT7vF3yx4Wx29rA1TgOI",
-  "authDomain": "gen-lang-client-0684180473.firebaseapp.com",
-  "firestoreDatabaseId": "ai-studio-7b7cc522-bf36-403c-a236-e5b1b60d64b3",
-  "storageBucket": "gen-lang-client-0684180473.firebasestorage.app",
-  "messagingSenderId": "21108370055",
+  "projectId": "papaonco-49365",
+  "appId": "1:509410271140:web:60e8d82ce29493545beb31",
+  "apiKey": "AIzaSyAlbFM0xgVZM9QyB4OdJ-jol2TiwqZuDPE",
+  "authDomain": "papaonco-49365.firebaseapp.com",
+  "storageBucket": "papaonco-49365.firebasestorage.app",
+  "messagingSenderId": "509410271140",
   "measurementId": ""
 }
