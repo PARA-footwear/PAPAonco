@@ -127,6 +127,7 @@ export default function App() {
 
   // Filter and export states
   const [timeFilter, setTimeFilter] = useState<"all" | "week" | "month">("all");
+  const [reportTimeFilter, setReportTimeFilter] = useState<"all" | "week1" | "week2" | "week3" | "month1" | "month2" | "month3">("month1");
   const [statusFilter, setStatusFilter] = useState<"all" | "normal" | "warning" | "critical">("all");
   const [isExporting, setIsExporting] = useState<boolean>(false);
   const [copiedText, setCopiedText] = useState<boolean>(false);
@@ -477,18 +478,54 @@ export default function App() {
   }, [records]);
 
   // Export clinical text generator
+  const reportFilteredRecords = useMemo(() => {
+    let list = [...records];
+    const now = Date.now();
+    if (reportTimeFilter === "week1") {
+      const oneWeekAgo = now - 7 * 24 * 60 * 60 * 1000;
+      list = list.filter((r) => r.createdAtMs >= oneWeekAgo);
+    } else if (reportTimeFilter === "week2") {
+      const twoWeeksAgo = now - 14 * 24 * 60 * 60 * 1000;
+      list = list.filter((r) => r.createdAtMs >= twoWeeksAgo);
+    } else if (reportTimeFilter === "week3") {
+      const threeWeeksAgo = now - 21 * 24 * 60 * 60 * 1000;
+      list = list.filter((r) => r.createdAtMs >= threeWeeksAgo);
+    } else if (reportTimeFilter === "month1") {
+      const oneMonthAgo = now - 30 * 24 * 60 * 60 * 1000;
+      list = list.filter((r) => r.createdAtMs >= oneMonthAgo);
+    } else if (reportTimeFilter === "month2") {
+      const twoMonthsAgo = now - 60 * 24 * 60 * 60 * 1000;
+      list = list.filter((r) => r.createdAtMs >= twoMonthsAgo);
+    } else if (reportTimeFilter === "month3") {
+      const threeMonthsAgo = now - 90 * 24 * 60 * 60 * 1000;
+      list = list.filter((r) => r.createdAtMs >= threeMonthsAgo);
+    }
+    return list;
+  }, [records, reportTimeFilter]);
+
   const exportSummaryText = useMemo(() => {
-    if (filteredRecords.length === 0) return "Немає записів за вибраний період.";
+    if (reportFilteredRecords.length === 0) return "Немає записів за вибраний період.";
+    
+    const timeFilterLabel = {
+      week1: "Останній 1 тиждень",
+      week2: "Останні 2 тижні",
+      week3: "Останні 3 тижні",
+      month1: "Останній 1 місяць",
+      month2: "Останні 2 місяці",
+      month3: "Останні 3 місяці",
+      all: "Всі записи"
+    }[reportTimeFilter];
+
     let report = `ЗВІТ ПРО СТАН ПАЦІЄНТА\n`;
     report += `=====================================\n`;
     report += `Пацієнт: Тіщенко Павло Володимирович, 19.06.1962 р.н. (${getCalculatedAge()} ${getAgeSuffix(getCalculatedAge())})\n`;
     report += `Діагноз: Плоскоклітинний рак легені (stage III)\n`;
-    report += `Період звіту: ${timeFilter === "week" ? "Останній тиждень" : timeFilter === "month" ? "Останній місяць" : "Всі записи"}\n`;
+    report += `Період звіту: ${timeFilterLabel}\n`;
     report += `Згенеровано: ${new Date().toLocaleString("uk-UA")}\n`;
     report += `=====================================\n\n`;
 
-    filteredRecords.forEach((r, idx) => {
-      report += `[Запис #${filteredRecords.length - idx}] ${r.timestamp}\n`;
+    reportFilteredRecords.forEach((r, idx) => {
+      report += `[Запис #${reportFilteredRecords.length - idx}] ${r.timestamp}\n`;
       report += `- Температура: ${r.temperature != null ? r.temperature.toFixed(1) + "°C" : "не вимірювалась"}\n`;
       report += `- Сатурація (O2): ${r.saturation != null ? r.saturation + "%" : "не вимірювалась"}\n`;
       report += `- Пульс: ${r.pulse != null ? r.pulse + " уд/хв" : "не вимірювався"}\n`;
@@ -517,7 +554,7 @@ export default function App() {
     });
 
     return report;
-  }, [filteredRecords, timeFilter]);
+  }, [reportFilteredRecords, reportTimeFilter]);
 
   const handleCopyReport = () => {
     navigator.clipboard.writeText(exportSummaryText);
@@ -1860,13 +1897,13 @@ export default function App() {
       {/* MODAL: EXPORT FOR DOCTOR */}
       {isExporting && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/65 backdrop-blur-sm">
-          <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl border border-slate-100 overflow-hidden transform scale-100 transition-all">
+          <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl border border-slate-100 overflow-hidden transform scale-100 transition-all max-h-[90vh] flex flex-col">
             {/* Modal Header */}
-            <div className="bg-slate-900 px-6 py-5 border-b border-slate-800 flex justify-between items-center text-white">
+            <div className="bg-slate-900 px-6 py-4 md:py-5 border-b border-slate-800 flex justify-between items-center text-white shrink-0">
               <div className="flex items-center gap-2.5">
                 <FileText className="w-5 h-5 text-rose-400" />
                 <div>
-                  <h3 className="font-extrabold text-base leading-tight">Зведений звіт для лікуючого онколога</h3>
+                  <h3 className="font-extrabold text-sm md:text-base leading-tight">Зведений звіт для лікуючого онколога</h3>
                   <p className="text-[10px] text-slate-400 font-semibold mt-0.5">Автоматичний збір клінічних показників</p>
                 </div>
               </div>
@@ -1879,49 +1916,81 @@ export default function App() {
             </div>
 
             {/* Modal Body */}
-            <div className="p-6 space-y-4">
+            <div className="p-4 md:p-6 space-y-4 overflow-y-auto flex-1">
               <p className="text-xs text-slate-500 leading-relaxed">
-                Згенеровано детальний текстову виписку щоденника здоров'я. Ви можете скопіювати її в WhatsApp/Viber, відправити електронною поштою або роздрукувати на принтері.
+                Згенеровано детальну текстову виписку щоденника здоров'я. Ви можете вибрати період для звіту, скопіювати її в WhatsApp/Viber, відправити електронною поштою або роздрукувати на принтері.
               </p>
 
+              {/* Timeframe selector for report */}
+              <div className="bg-slate-50 border border-slate-200/80 p-3 rounded-xl">
+                <label className="block text-slate-700 font-extrabold text-[11px] tracking-wide uppercase mb-2 flex items-center gap-1.5">
+                  <Calendar className="w-3.5 h-3.5 text-rose-500" />
+                  Період звіту:
+                </label>
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    { id: "week1", label: "1 тиждень" },
+                    { id: "week2", label: "2 тижні" },
+                    { id: "week3", label: "3 тижні" },
+                    { id: "month1", label: "1 місяць" },
+                    { id: "month2", label: "2 місяці" },
+                    { id: "month3", label: "3 місяці" },
+                    { id: "all", label: "Весь час" }
+                  ].map((preset) => (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      onClick={() => setReportTimeFilter(preset.id as any)}
+                      className={`px-3 py-1.5 text-xs font-bold rounded-lg border transition-all cursor-pointer ${
+                        reportTimeFilter === preset.id
+                          ? "bg-rose-500 text-white border-rose-500 shadow-sm"
+                          : "bg-white hover:bg-slate-100 text-slate-700 border-slate-200"
+                      }`}
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {/* Text Preview Box */}
-              <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 max-h-[300px] overflow-y-auto">
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 max-h-[220px] overflow-y-auto">
                 <pre className="font-mono text-xs text-slate-700 whitespace-pre-wrap leading-relaxed">
                   {exportSummaryText}
                 </pre>
               </div>
+            </div>
 
-              {/* Action triggers */}
-              <div className="flex flex-wrap justify-between items-center gap-3 pt-4 border-t border-slate-100">
-                <div className="flex gap-2">
-                  <button
-                    onClick={handleCopyReport}
-                    className={`px-4 py-2.5 text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer ${
-                      copiedText
-                        ? "bg-emerald-600 text-white"
-                        : "bg-slate-900 hover:bg-slate-800 text-white"
-                    }`}
-                  >
-                    <Copy className="w-3.5 h-3.5" />
-                    {copiedText ? "Скопійовано!" : "Копіювати текст"}
-                  </button>
-
-                  <button
-                    onClick={handlePrint}
-                    className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200/80 text-slate-700 text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <Printer className="w-3.5 h-3.5" />
-                    Роздрукувати звіт
-                  </button>
-                </div>
+            {/* Modal Footer */}
+            <div className="bg-slate-50 p-4 md:px-6 md:py-4 border-t border-slate-100 flex flex-col sm:flex-row justify-between items-center gap-3 shrink-0">
+              <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+                <button
+                  onClick={handleCopyReport}
+                  className={`px-4 py-2.5 text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer justify-center flex-1 sm:flex-initial ${
+                    copiedText
+                      ? "bg-emerald-600 text-white"
+                      : "bg-slate-900 hover:bg-slate-800 text-white"
+                  }`}
+                >
+                  <Copy className="w-3.5 h-3.5" />
+                  {copiedText ? "Скопійовано!" : "Копіювати текст"}
+                </button>
 
                 <button
-                  onClick={() => setIsExporting(false)}
-                  className="px-4 py-2.5 text-xs font-extrabold text-slate-500 hover:text-slate-800 rounded-xl transition-colors cursor-pointer"
+                  onClick={handlePrint}
+                  className="px-4 py-2.5 bg-white hover:bg-slate-100 text-slate-700 text-xs font-bold rounded-xl border border-slate-200 transition-all flex items-center gap-1.5 cursor-pointer justify-center flex-1 sm:flex-initial"
                 >
-                  Закрити
+                  <Printer className="w-3.5 h-3.5" />
+                  Роздрукувати звіт
                 </button>
               </div>
+
+              <button
+                onClick={() => setIsExporting(false)}
+                className="w-full sm:w-auto px-5 py-2.5 text-xs font-extrabold bg-slate-200 hover:bg-slate-300/80 text-slate-800 rounded-xl transition-all cursor-pointer text-center shrink-0"
+              >
+                Закрити
+              </button>
             </div>
           </div>
         </div>
