@@ -31,6 +31,8 @@ import {
   Line
 } from "recharts";
 import { MedicalRecord, ComplaintOption, IndicatorStatus } from "./types";
+import { db } from "./firebase";
+import { collection, addDoc, getDocs, query, orderBy, doc, deleteDoc } from "firebase/firestore";
 
 // Helper to format date as DD.MM.YYYY HH:MM
 const formatCurrentDate = (date: Date): string => {
@@ -98,21 +100,46 @@ export default function App() {
   const [isExporting, setIsExporting] = useState<boolean>(false);
   const [copiedText, setCopiedText] = useState<boolean>(false);
 
-  // Fetch all health records from backend API
+  // Fetch all health records directly from Firestore (or fallback to local storage)
   const fetchRecords = async () => {
     setIsLoading(true);
     try {
-      const res = await fetch("/api/records");
-      if (res.ok) {
-        const data = await res.json();
-        setRecords(data);
-      } else {
-        // Fallback to local storage if API is not fully configured or fails
-        const localData = localStorage.getItem("chemo_tracker_records");
-        setRecords(localData ? JSON.parse(localData) : []);
+      if (db) {
+        try {
+          const recordsCollection = collection(db, "records");
+          const q = query(recordsCollection, orderBy("createdAtMs", "desc"));
+          const snapshot = await getDocs(q);
+          const fetchedRecords: MedicalRecord[] = [];
+          snapshot.forEach((docSnap) => {
+            fetchedRecords.push({
+              id: docSnap.id,
+              ...docSnap.data()
+            } as MedicalRecord);
+          });
+          setRecords(fetchedRecords);
+          return;
+        } catch (firestoreErr) {
+          console.warn("Firestore fetch failed, trying local API/local storage:", firestoreErr);
+        }
       }
+
+      // Fallback: try proxy server API
+      try {
+        const res = await fetch("/api/records");
+        if (res.ok) {
+          const data = await res.json();
+          setRecords(data);
+          return;
+        }
+      } catch (apiErr) {
+        console.warn("Local API fetch failed, falling back to local storage:", apiErr);
+      }
+
+      // Ultimate fallback: Local Storage
+      const localData = localStorage.getItem("chemo_tracker_records");
+      setRecords(localData ? JSON.parse(localData) : []);
     } catch (e) {
-      console.error("Error fetching medical records, falling back to local:", e);
+      console.error("Error fetching medical records:", e);
       const localData = localStorage.getItem("chemo_tracker_records");
       setRecords(localData ? JSON.parse(localData) : []);
     } finally {
@@ -278,25 +305,41 @@ export default function App() {
       status: calculatedStatus
     };
 
-    try {
-      const res = await fetch("/api/records", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(newRecord)
-      });
+    let recordAdded = false;
 
-      if (res.ok) {
-        const savedRecord = await res.json();
+    if (db) {
+      try {
+        const recordsCollection = collection(db, "records");
+        const docRef = await addDoc(recordsCollection, newRecord);
+        const savedRecord = { id: docRef.id, ...newRecord } as MedicalRecord;
         setRecords((prev) => [savedRecord, ...prev]);
-      } else {
-        // Fallback local save
-        const savedRecord = { id: "local_" + Date.now(), ...newRecord } as MedicalRecord;
-        setRecords((prev) => [savedRecord, ...prev]);
+        recordAdded = true;
+      } catch (firestoreErr) {
+        console.warn("Direct Firestore insert failed, trying server API:", firestoreErr);
       }
-    } catch (err) {
-      console.error("Failed to post record, saving locally:", err);
+    }
+
+    if (!recordAdded) {
+      try {
+        const res = await fetch("/api/records", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(newRecord)
+        });
+
+        if (res.ok) {
+          const savedRecord = await res.json();
+          setRecords((prev) => [savedRecord, ...prev]);
+          recordAdded = true;
+        }
+      } catch (apiErr) {
+        console.warn("Local API insert failed, using local storage:", apiErr);
+      }
+    }
+
+    if (!recordAdded) {
       const savedRecord = { id: "local_" + Date.now(), ...newRecord } as MedicalRecord;
       setRecords((prev) => [savedRecord, ...prev]);
     }
@@ -317,22 +360,35 @@ export default function App() {
       localStorage.setItem("chemo_tracker_records", JSON.stringify(filteredLocal));
     };
 
-    try {
-      const res = await fetch(`/api/records/${recordToDelete.id}`, {
-        method: "DELETE"
-      });
-      if (res.ok) {
-        deleteFromState();
-      } else {
-        deleteFromState();
+    let deletedFromServer = false;
+
+    if (db && recordToDelete.id && !recordToDelete.id.startsWith("local_")) {
+      try {
+        const docRef = doc(db, "records", recordToDelete.id);
+        await deleteDoc(docRef);
+        deletedFromServer = true;
+      } catch (firestoreErr) {
+        console.warn("Direct Firestore delete failed, trying server API:", firestoreErr);
       }
-    } catch (err) {
-      console.error("Failed to delete from server, deleting locally:", err);
-      deleteFromState();
-    } finally {
-      setIsDeleting(false);
-      setRecordToDelete(null);
     }
+
+    if (!deletedFromServer) {
+      try {
+        const res = await fetch(`/api/records/${recordToDelete.id}`, {
+          method: "DELETE"
+        });
+        if (res.ok) {
+          deletedFromServer = true;
+        }
+      } catch (err) {
+        console.error("Failed to delete from server API:", err);
+      }
+    }
+
+    // Always clean up state and local cache
+    deleteFromState();
+    setIsDeleting(false);
+    setRecordToDelete(null);
   };
 
   // Filter records by time window and safety status
