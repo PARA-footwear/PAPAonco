@@ -9,6 +9,7 @@ import {
   Check,
   Trash2,
   Heart,
+  Scale,
   Calendar,
   Sparkles,
   Printer,
@@ -34,6 +35,32 @@ import { MedicalRecord, ComplaintOption, IndicatorStatus } from "./types";
 import { db } from "./firebase";
 import { collection, addDoc, getDocs, query, orderBy, doc, deleteDoc } from "firebase/firestore";
 
+// Helper to calculate age dynamically based on birthdate 19.06.1962
+const getCalculatedAge = (): number => {
+  const birthDate = new Date(1962, 5, 19); // June is 5 (0-indexed)
+  const today = new Date();
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const m = today.getMonth() - birthDate.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+    age--;
+  }
+  return age;
+};
+
+const getAgeSuffix = (age: number): string => {
+  if (age % 100 >= 11 && age % 100 <= 14) {
+    return "років";
+  }
+  const lastDigit = age % 10;
+  if (lastDigit === 1) {
+    return "рік";
+  }
+  if (lastDigit >= 2 && lastDigit <= 4) {
+    return "роки";
+  }
+  return "років";
+};
+
 // Helper to format date as DD.MM.YYYY HH:MM
 const formatCurrentDate = (date: Date): string => {
   const day = String(date.getDate()).padStart(2, "0");
@@ -51,7 +78,11 @@ const COMPLAINT_OPTIONS: ComplaintOption[] = [
   { id: "weakness", label: "Слабкість / Хиткість", emoji: "😵‍💫" },
   { id: "bone_pain", label: "Біль у кістках", emoji: "🦴" },
   { id: "vomiting", label: "Блювання", emoji: "🤮" },
-  { id: "headache", label: "Головний біль", emoji: "🤕" }
+  { id: "headache", label: "Головний біль", emoji: "🤕" },
+  { id: "leg_pain", label: "Біль в ногах", emoji: "🦵" },
+  { id: "bowel_pain", label: "Біль у кишківнику", emoji: "😣" },
+  { id: "body_pain", label: "Біль у всьому тілі", emoji: "🤕" },
+  { id: "breath_shortness", label: "Задишка", emoji: "🫁" }
 ];
 
 const MEDICATION_SUGGESTIONS = [
@@ -450,7 +481,7 @@ export default function App() {
     if (filteredRecords.length === 0) return "Немає записів за вибраний період.";
     let report = `ЗВІТ ПРО СТАН ПАЦІЄНТА\n`;
     report += `=====================================\n`;
-    report += `Пацієнт: Тищенко Павло Володимирович, 60 років\n`;
+    report += `Пацієнт: Тіщенко Павло Володимирович, 19.06.1962 р.н. (${getCalculatedAge()} ${getAgeSuffix(getCalculatedAge())})\n`;
     report += `Діагноз: Плоскоклітинний рак легені (stage III)\n`;
     report += `Період звіту: ${timeFilter === "week" ? "Останній тиждень" : timeFilter === "month" ? "Останній місяць" : "Всі записи"}\n`;
     report += `Згенеровано: ${new Date().toLocaleString("uk-UA")}\n`;
@@ -506,7 +537,7 @@ export default function App() {
           Медичний Щоденник Спостережень
         </h1>
         <div className="mt-4 space-y-2">
-          <p className="text-lg"><strong>Пацієнт:</strong> Тищенко Павло Володимирович, 60 років</p>
+          <p className="text-lg"><strong>Пацієнт:</strong> Тіщенко Павло Володимирович, 19.06.1962 р.н. ({getCalculatedAge()} {getAgeSuffix(getCalculatedAge())})</p>
           <p className="text-lg"><strong>Діагноз:</strong> Плоскоклітинний рак легені (stage III)</p>
           <p className="text-sm text-slate-500">Згенеровано на платформі Медичний Щоденник</p>
         </div>
@@ -535,15 +566,20 @@ export default function App() {
             </div>
 
             {/* Patient Info Card */}
-            <div className="bg-slate-50 hover:bg-slate-100/80 transition-colors rounded-2xl p-3 border border-slate-200/60 flex items-center gap-3 max-w-full">
-              <div className="w-9 h-9 bg-slate-200 rounded-xl flex items-center justify-center text-slate-600 font-bold shrink-0">
+            <div className="bg-slate-50 hover:bg-slate-100/80 transition-colors rounded-2xl p-3.5 border border-slate-200/60 flex items-center gap-3 w-full md:max-w-md shrink-0">
+              <div className="w-10 h-10 bg-rose-100 text-rose-700 rounded-xl flex items-center justify-center text-lg font-bold shrink-0">
                 👴
               </div>
-              <div className="min-w-0">
-                <p className="text-sm font-bold text-slate-800 truncate">
-                  Тищенко Павло Володимирович, 60 років
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-black text-slate-800 break-words leading-tight">
+                  Тіщенко Павло Володимирович
                 </p>
-                <p className="text-[11px] font-semibold text-slate-500 truncate">
+                <p className="text-xs font-bold text-slate-600 mt-1 flex flex-wrap gap-x-2">
+                  <span>19.06.1962 р.н.</span>
+                  <span className="text-slate-400">|</span>
+                  <span className="text-rose-700 font-extrabold">{getCalculatedAge()} {getAgeSuffix(getCalculatedAge())}</span>
+                </p>
+                <p className="text-[11px] font-semibold text-slate-500 mt-1 break-words leading-tight">
                   Діагноз: Плоскоклітинний рак легені (stage III)
                 </p>
               </div>
@@ -614,40 +650,7 @@ export default function App() {
             </div>
           )}
 
-          {/* DYNAMIC SMART ALERTS (IN ENTRY MODE) */}
-          {activeTab === "entry" && (isTempCritical || isSatCritical) && (
-            <div className="space-y-3 mb-6">
-              {isTempCritical && (
-                <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-2xl shadow-sm critical-alert">
-                  <div className="flex items-start gap-3">
-                    <AlertTriangle className="w-8 h-8 text-red-600 shrink-0 mt-0.5" />
-                    <div>
-                      <h3 className="text-red-950 font-black text-base">Увага! Ризик нейтропенії!</h3>
-                      <p className="text-red-900 text-xs mt-1 font-semibold leading-relaxed">
-                        Температура 37.5°C і вище може бути ознакою фебрильної нейтропенії — небезпечного стану зниження імунітету. 
-                        <strong> Не приймайте Німесил або інші жарознижувальні без призначення лікаря!</strong> Тільки Парацетамол 500 мг за погодженням з лікарем!
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {isSatCritical && (
-                <div className="bg-rose-50 border-l-4 border-rose-500 p-4 rounded-r-2xl shadow-sm">
-                  <div className="flex items-start gap-3">
-                    <AlertTriangle className="w-8 h-8 text-rose-600 shrink-0 mt-0.5" />
-                    <div>
-                      <h3 className="text-rose-950 font-black text-base">Увага! Низький рівень кисню!</h3>
-                      <p className="text-rose-900 text-xs mt-1 font-semibold leading-relaxed">
-                        Сатурація нижче 92% свідчить про гіпоксію. Посадіть пацієнта напівсидячи, відкрийте вікно для свіжого повітря. 
-                        Дайте кисневий концентратор. Якщо показник впаде нижче 90% — негайно викликайте <strong>Швидку допомогу (103)</strong>!
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
+          {/* DYNAMIC SMART ALERTS REMOVED BY USER REQUEST */}
 
           {/* TAB 1: FORM ENTRY */}
           {activeTab === "entry" && (
@@ -1313,117 +1316,285 @@ export default function App() {
                   <p className="text-slate-400 text-xs mt-1">Додайте хоча б один запис у вкладці «Введення даних»!</p>
                 </div>
               ) : (
-                <div className="space-y-6">
-                  {/* CHART 1: TEMPERATURE AND OXYGEN OVER TIME */}
-                  <div className="bg-white p-5 rounded-2xl border border-slate-200/60 shadow-sm">
-                    <h3 className="text-sm font-extrabold text-slate-800 mb-4 flex items-center gap-2">
-                      <Thermometer className="w-4 h-4 text-red-500" />
-                      Температура (°C) та Насичення киснем (%)
-                    </h3>
-                    
-                    <div className="h-[280px] w-full">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                          <defs>
-                            <linearGradient id="tempColor" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="5%" stopColor="#ef4444" stopOpacity={0.2} />
-                              <stop offset="95%" stopColor="#ef4444" stopOpacity={0.0} />
-                            </linearGradient>
-                            <linearGradient id="oxygenColor" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.2} />
-                              <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0.0} />
-                            </linearGradient>
-                          </defs>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                          <XAxis dataKey="shortDate" stroke="#94a3b8" fontSize={11} fontWeight={600} />
-                          <YAxis domain={['dataMin - 1', 'dataMax + 1']} stroke="#94a3b8" fontSize={11} fontWeight={600} />
-                          <Tooltip
-                            contentStyle={{
-                              backgroundColor: "rgba(15, 23, 42, 0.95)",
-                              borderRadius: "12px",
-                              border: "none",
-                              color: "#fff",
-                              fontSize: "12px",
-                              fontFamily: "sans-serif"
-                            }}
-                          />
-                          <Legend wrapperStyle={{ fontSize: "11px", fontWeight: "bold" }} />
-                          <Area
-                            name="Температура (°C)"
-                            type="monotone"
-                            dataKey="temperature"
-                            stroke="#ef4444"
-                            strokeWidth={3}
-                            fillOpacity={1}
-                            fill="url(#tempColor)"
-                          />
-                          <Area
-                            name="Сатурація (%)"
-                            type="monotone"
-                            dataKey="saturation"
-                            stroke="#0ea5e9"
-                            strokeWidth={3}
-                            fillOpacity={1}
-                            fill="url(#oxygenColor)"
-                          />
-                        </AreaChart>
-                      </ResponsiveContainer>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  
+                  {/* CHART 1: TEMPERATURE */}
+                  <div className="bg-white p-5 rounded-2xl border border-slate-200/60 shadow-sm flex flex-col justify-between">
+                    <div>
+                      <h3 className="text-sm font-extrabold text-slate-800 mb-4 flex items-center gap-2">
+                        <Thermometer className="w-4 h-4 text-red-500" />
+                        Температура тіла (°C)
+                      </h3>
+                      <div className="h-[220px] w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                            <defs>
+                              <linearGradient id="tempOnlyColor" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#ef4444" stopOpacity={0.2} />
+                                <stop offset="95%" stopColor="#ef4444" stopOpacity={0.0} />
+                              </linearGradient>
+                            </defs>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                            <XAxis dataKey="shortDate" stroke="#94a3b8" fontSize={11} fontWeight={600} />
+                            <YAxis domain={['dataMin - 0.5', 'dataMax + 0.5']} stroke="#94a3b8" fontSize={11} fontWeight={600} />
+                            <Tooltip
+                              contentStyle={{
+                                backgroundColor: "rgba(15, 23, 42, 0.95)",
+                                borderRadius: "12px",
+                                border: "none",
+                                color: "#fff",
+                                fontSize: "12px",
+                                fontFamily: "sans-serif"
+                              }}
+                            />
+                            <Area
+                              name="Температура (°C)"
+                              type="monotone"
+                              dataKey="temperature"
+                              stroke="#ef4444"
+                              strokeWidth={3}
+                              fillOpacity={1}
+                              fill="url(#tempOnlyColor)"
+                              connectNulls={true}
+                            />
+                          </AreaChart>
+                        </ResponsiveContainer>
+                      </div>
                     </div>
                   </div>
 
-                  {/* CHART 2: PRESSURE & PULSE */}
-                  <div className="bg-white p-5 rounded-2xl border border-slate-200/60 shadow-sm">
-                    <h3 className="text-sm font-extrabold text-slate-800 mb-4 flex items-center gap-2">
-                      <Activity className="w-4 h-4 text-emerald-500" />
-                      Тиск (SYS / DIA) та Пульс (уд/хв)
-                    </h3>
-
-                    <div className="h-[280px] w-full">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                          <XAxis dataKey="shortDate" stroke="#94a3b8" fontSize={11} fontWeight={600} />
-                          <YAxis domain={['dataMin - 10', 'dataMax + 10']} stroke="#94a3b8" fontSize={11} fontWeight={600} />
-                          <Tooltip
-                            contentStyle={{
-                              backgroundColor: "rgba(15, 23, 42, 0.95)",
-                              borderRadius: "12px",
-                              border: "none",
-                              color: "#fff",
-                              fontSize: "12px",
-                              fontFamily: "sans-serif"
-                            }}
-                          />
-                          <Legend wrapperStyle={{ fontSize: "11px", fontWeight: "bold" }} />
-                          <Line
-                            name="Систолічний (SYS)"
-                            type="monotone"
-                            dataKey="pressureSys"
-                            stroke="#dc2626"
-                            strokeWidth={2.5}
-                            dot={{ r: 4 }}
-                          />
-                          <Line
-                            name="Діастолічний (DIA)"
-                            type="monotone"
-                            dataKey="pressureDia"
-                            stroke="#2563eb"
-                            strokeWidth={2}
-                            dot={{ r: 4 }}
-                          />
-                          <Line
-                            name="Пульс (уд/хв)"
-                            type="monotone"
-                            dataKey="pulse"
-                            stroke="#10b981"
-                            strokeWidth={2}
-                            strokeDasharray="5 5"
-                            dot={{ r: 3 }}
-                          />
-                        </LineChart>
-                      </ResponsiveContainer>
+                  {/* CHART 2: OXYGEN SATURATION */}
+                  <div className="bg-white p-5 rounded-2xl border border-slate-200/60 shadow-sm flex flex-col justify-between">
+                    <div>
+                      <h3 className="text-sm font-extrabold text-slate-800 mb-4 flex items-center gap-2">
+                        <Wind className="w-4 h-4 text-sky-500" />
+                        Сатурація кисню (%)
+                      </h3>
+                      <div className="h-[220px] w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                            <defs>
+                              <linearGradient id="oxygenOnlyColor" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.2} />
+                                <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0.0} />
+                              </linearGradient>
+                            </defs>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                            <XAxis dataKey="shortDate" stroke="#94a3b8" fontSize={11} fontWeight={600} />
+                            <YAxis domain={[85, 100]} stroke="#94a3b8" fontSize={11} fontWeight={600} />
+                            <Tooltip
+                              contentStyle={{
+                                backgroundColor: "rgba(15, 23, 42, 0.95)",
+                                borderRadius: "12px",
+                                border: "none",
+                                color: "#fff",
+                                fontSize: "12px",
+                                fontFamily: "sans-serif"
+                              }}
+                            />
+                            <Area
+                              name="Сатурація (%)"
+                              type="monotone"
+                              dataKey="saturation"
+                              stroke="#0ea5e9"
+                              strokeWidth={3}
+                              fillOpacity={1}
+                              fill="url(#oxygenOnlyColor)"
+                              connectNulls={true}
+                            />
+                          </AreaChart>
+                        </ResponsiveContainer>
+                      </div>
                     </div>
                   </div>
+
+                  {/* CHART 3: BLOOD PRESSURE */}
+                  <div className="bg-white p-5 rounded-2xl border border-slate-200/60 shadow-sm flex flex-col justify-between">
+                    <div>
+                      <h3 className="text-sm font-extrabold text-slate-800 mb-4 flex items-center gap-2">
+                        <Activity className="w-4 h-4 text-red-500" />
+                        Артеріальний тиск (мм рт. ст.)
+                      </h3>
+                      <div className="h-[220px] w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <LineChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                            <XAxis dataKey="shortDate" stroke="#94a3b8" fontSize={11} fontWeight={600} />
+                            <YAxis domain={['dataMin - 10', 'dataMax + 10']} stroke="#94a3b8" fontSize={11} fontWeight={600} />
+                            <Tooltip
+                              contentStyle={{
+                                backgroundColor: "rgba(15, 23, 42, 0.95)",
+                                borderRadius: "12px",
+                                border: "none",
+                                color: "#fff",
+                                fontSize: "12px",
+                                fontFamily: "sans-serif"
+                              }}
+                            />
+                            <Legend wrapperStyle={{ fontSize: "11px", fontWeight: "bold" }} />
+                            <Line
+                              name="Систолічний (SYS)"
+                              type="monotone"
+                              dataKey="pressureSys"
+                              stroke="#dc2626"
+                              strokeWidth={2.5}
+                              dot={{ r: 4 }}
+                              connectNulls={true}
+                            />
+                            <Line
+                              name="Діастолічний (DIA)"
+                              type="monotone"
+                              dataKey="pressureDia"
+                              stroke="#2563eb"
+                              strokeWidth={2}
+                              dot={{ r: 4 }}
+                              connectNulls={true}
+                            />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* CHART 4: PULSE RATE */}
+                  <div className="bg-white p-5 rounded-2xl border border-slate-200/60 shadow-sm flex flex-col justify-between">
+                    <div>
+                      <h3 className="text-sm font-extrabold text-slate-800 mb-4 flex items-center gap-2">
+                        <Heart className="w-4 h-4 text-emerald-500" />
+                        Частота пульсу (уд/хв)
+                      </h3>
+                      <div className="h-[220px] w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                            <defs>
+                              <linearGradient id="pulseColor" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#10b981" stopOpacity={0.2} />
+                                <stop offset="95%" stopColor="#10b981" stopOpacity={0.0} />
+                              </linearGradient>
+                            </defs>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                            <XAxis dataKey="shortDate" stroke="#94a3b8" fontSize={11} fontWeight={600} />
+                            <YAxis domain={['dataMin - 10', 'dataMax + 10']} stroke="#94a3b8" fontSize={11} fontWeight={600} />
+                            <Tooltip
+                              contentStyle={{
+                                backgroundColor: "rgba(15, 23, 42, 0.95)",
+                                borderRadius: "12px",
+                                border: "none",
+                                color: "#fff",
+                                fontSize: "12px",
+                                fontFamily: "sans-serif"
+                              }}
+                            />
+                            <Area
+                              name="Пульс (уд/хв)"
+                              type="monotone"
+                              dataKey="pulse"
+                              stroke="#10b981"
+                              strokeWidth={3}
+                              fillOpacity={1}
+                              fill="url(#pulseColor)"
+                              connectNulls={true}
+                            />
+                          </AreaChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* CHART 5: BLOOD SUGAR (Conditional) */}
+                  {chartData.some(r => r.bloodSugar != null && r.bloodSugar !== "") && (
+                    <div className="bg-white p-5 rounded-2xl border border-slate-200/60 shadow-sm flex flex-col justify-between">
+                      <div>
+                        <h3 className="text-sm font-extrabold text-slate-800 mb-4 flex items-center gap-2">
+                          <Activity className="w-4 h-4 text-amber-500" />
+                          Рівень цукру в крові (ммоль/л)
+                        </h3>
+                        <div className="h-[220px] w-full">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                              <defs>
+                                <linearGradient id="sugarColor" x1="0" y1="0" x2="0" y2="1">
+                                  <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.2} />
+                                  <stop offset="95%" stopColor="#f59e0b" stopOpacity={0.0} />
+                                </linearGradient>
+                              </defs>
+                              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                              <XAxis dataKey="shortDate" stroke="#94a3b8" fontSize={11} fontWeight={600} />
+                              <YAxis domain={['dataMin - 1', 'dataMax + 1']} stroke="#94a3b8" fontSize={11} fontWeight={600} />
+                              <Tooltip
+                                contentStyle={{
+                                  backgroundColor: "rgba(15, 23, 42, 0.95)",
+                                  borderRadius: "12px",
+                                  border: "none",
+                                  color: "#fff",
+                                  fontSize: "12px",
+                                  fontFamily: "sans-serif"
+                                }}
+                              />
+                              <Area
+                                name="Цукор (ммоль/л)"
+                                type="monotone"
+                                dataKey="bloodSugar"
+                                stroke="#f59e0b"
+                                strokeWidth={3}
+                                fillOpacity={1}
+                                fill="url(#sugarColor)"
+                                connectNulls={true}
+                              />
+                            </AreaChart>
+                          </ResponsiveContainer>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* CHART 6: WEIGHT (Conditional) */}
+                  {chartData.some(r => r.weight != null && r.weight !== "") && (
+                    <div className="bg-white p-5 rounded-2xl border border-slate-200/60 shadow-sm flex flex-col justify-between">
+                      <div>
+                        <h3 className="text-sm font-extrabold text-slate-800 mb-4 flex items-center gap-2">
+                          <Scale className="w-4 h-4 text-violet-500" />
+                          Вага тіла (кг)
+                        </h3>
+                        <div className="h-[220px] w-full">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                              <defs>
+                                <linearGradient id="weightColor" x1="0" y1="0" x2="0" y2="1">
+                                  <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.2} />
+                                  <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0.0} />
+                                </linearGradient>
+                              </defs>
+                              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                              <XAxis dataKey="shortDate" stroke="#94a3b8" fontSize={11} fontWeight={600} />
+                              <YAxis domain={['dataMin - 2', 'dataMax + 2']} stroke="#94a3b8" fontSize={11} fontWeight={600} />
+                              <Tooltip
+                                contentStyle={{
+                                  backgroundColor: "rgba(15, 23, 42, 0.95)",
+                                  borderRadius: "12px",
+                                  border: "none",
+                                  color: "#fff",
+                                  fontSize: "12px",
+                                  fontFamily: "sans-serif"
+                                }}
+                              />
+                              <Area
+                                name="Вага (кг)"
+                                type="monotone"
+                                dataKey="weight"
+                                stroke="#8b5cf6"
+                                strokeWidth={3}
+                                fillOpacity={1}
+                                fill="url(#weightColor)"
+                                connectNulls={true}
+                              />
+                            </AreaChart>
+                          </ResponsiveContainer>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                 </div>
               )}
 
